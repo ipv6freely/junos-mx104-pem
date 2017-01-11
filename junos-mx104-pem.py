@@ -83,7 +83,6 @@ set event-options event-script file monitoring-pem.slax
             cu = Config(dev)
             cu.rollback()
             cu.load(config_set, format="set")
-            #cu.pdiff()
             if cu.commit_check():
                 cu.commit(comment='CHG123010',sync=True)
             else:
@@ -96,7 +95,6 @@ set event-options event-script file monitoring-pem.slax
 def main():
 
     hostlist = grabhosts()
-    #hostlist=[]
     juniper_username, juniper_password = get_credentials()
     processhosts(hostlist,juniper_username,juniper_password)
 
