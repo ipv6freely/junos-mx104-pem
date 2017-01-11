@@ -3,13 +3,13 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import input
-from datetime import datetime
-import getpass
-import os
 from jnpr.junos import Device
 from jnpr.junos.utils.scp import SCP
 from jnpr.junos.utils.fs import FS
 from jnpr.junos.utils.config import Config
+import getpass
+import os
+
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
