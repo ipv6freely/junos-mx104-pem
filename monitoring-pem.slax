@@ -1,0 +1,141 @@
+/*
+ * Author        : nfujita (JTAC)
+ * Version       : 1.1
+ * Last Modified : 23 Feb 2015
+ * Platform      : MX104
+ * Release       :
+ *
+ *
+ * License       : BSD-Style
+ *  Copyright (c) 2015 Juniper Networks. All Rights Reserved.
+ *  Redistribution and use in source and binary forms, with or without modification,
+ *  are permitted provided that the following conditions are met:
+ *  1. Redistributions of source code must retain the above copyright notice, this
+ *  list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright notice,
+ *  this list of conditions and the following disclaimer in the documentation and/or
+ *  other materials provided with the distribution.
+ *  3. The name of the author may not be used to endorse or promote products derived
+ *  from this software without specific prior written permission.
+ *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AS IS AND ANY EXPRESS OR IMPLIED
+ *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ *  AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+- File localtion
+/var/run/scripts/event/monitoring-pem.slax
+
+Copy to re1:/var/run/scripts/event/
+
+- Required configuration
+set event-options generate-event 10MIN_PERIODIC time-interval 600
+set event-options policy monitoring-pem events 10MIN_PERIODIC
+set event-options policy monitoring-pem then event-script monitoring-pem.slax
+set event-options event-script file monitoring-pem.slax
+set system syslog file monitoring-pem.log external any
+
+ */
+
+version 1.0;
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ns str = "http://exslt.org/strings";
+ns math = "http://exslt.org/math";
+ns date = "http://exslt.org/dates-and-times";
+
+var $arguments = {
+  <argument> {
+    <name> "tmp-full";
+    <description> "PEM temprature threshold for fan full-speed. Default 60 deg C";
+  }
+  <argument> {
+    <name> "tmp-int";
+    <description> "PEM temprature threshold for fan intermediatnormal speed. Default 50 deg C";
+  }
+  <argument> {
+    <name> "tmp-nor";
+    <description> "PEM temprature threshold for fan normal speed. Default 45 deg C";
+  }
+  <argument> {
+    <name> "no-logging";
+    <description> "No logging but controlling the PEM temp and acting the FAN speed. true/false, default:true";
+  }
+  <argument> {
+    <name> "logging-only";
+    <description> "No controlling of the PEM temp and no actions. true/false, default:false";
+  }
+}
+
+param $tmp-full = 50;
+param $tmp-int = 45;
+param $tmp-nor = 35;
+param $no-logging = "true";
+param $logging-only = "false";
+
+var $con = jcs:open();
+
+
+template are_we_master_re()  /* returns 1 when master */
+{
+    /* Retrieve mastership from sysctl */
+    var $mastership= jcs:sysctl("hw.re.mastership","i");
+    expr $mastership;
+}
+
+
+template set-fan-speed($speed) {
+  var $rpc-test-fan-speed = {<command> "test chassis fan speed " _ $speed;}
+  var $res-test-fan-speed = jcs:execute($con,$rpc-test-fan-speed);
+  if ($no-logging = "false") {
+    var $msg = $script _ " fan speed is set to " _ $speed _ ".";
+    expr jcs:syslog("external.info", $msg);
+  }
+}
+
+match / {
+  <op-script-results> {
+    var $mastership = { call are_we_master_re(); }
+    if ($mastership == 1) {
+      /*checking temp*/
+      var $rpc-show-env = { <command> "show chassis environment";}
+      var $res-show-env = jcs:execute($con,$rpc-show-env);
+      var $pem0 = $res-show-env//environment-item[name == "PEM 0"]/temperature/@junos:celsius;
+      var $pem1 = $res-show-env//environment-item[name == "PEM 1"]/temperature/@junos:celsius;
+      var $fan-speed = $res-show-env//environment-item[name == "Fan 1"]/comment;
+      var $max-temp = math:max( $res-show-env//environment-item[contains(./name, "PEM")]/temperature/@junos:celsius);
+      /* -> currently, checking MAX tempreture of PEMs alone. */
+
+      /*fan control*/
+      if ($logging-only = "false") {
+        if ($pem0 >= $tmp-full || $pem1 >= $tmp-full) {
+           call set-fan-speed($speed="full-speed");
+        } else if ($pem0 >= $tmp-int or $pem1 >= $tmp-int ) {
+          call set-fan-speed($speed="intermediate-speed");
+        } else if ($fan-speed == "Spinning at intermediate-speed" || $fan-speed == "Spinning at high speed") {
+          if ($max-temp <= $tmp-nor ) {
+            call set-fan-speed($speed="normal");
+          }
+        }
+      }
+
+      if ($no-logging = "false") {
+        /*logging the output*/
+        expr jcs:syslog("external.debug", "      Item                           Status     Measurement");
+        for-each ($res-show-env//environment-item[class=="Temp"]) {
+          expr jcs:syslog("external.debug",jcs:printf("      %-30s %-10s %-30s", ./name, ./status, ./temperature) );
+        }
+        for-each ($res-show-env//environment-item[class=="Fans"]) {
+          expr jcs:syslog("external.debug",jcs:printf("      %-30s %-10s %-30s", ./name, ./status, ./comment) );
+        }
+      }
+    }
+  }
+}
+
