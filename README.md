@@ -2,9 +2,6 @@
 
 A script used for updating a list of MX104 routers with an event script to address Juniper PR1064039
 
-## Author
-* **Chris Jones** - Github: [IPv6Freely](https://github.com/ipv6freely) - Twitter: [@IPv6Freely](https://twitter.com/ipv6freely)
-
 ## Description
 
 DC-PEMs of MX104 systems may suddenly restart due to over temperature protection and can trigger a system restart. The DC-PEM temperature sensors were not monitored by the fan system algorithm causing over-temperature conditions under certain environmental conditions.  MX104 with AC-PEMs are not exposed.
@@ -16,6 +13,9 @@ DC-PEMs of MX104 systems may suddenly restart due to over temperature protection
 ```
 python junos-mx104-pem.py
 ```
+
+## Author
+* **Chris Jones** - Github: [IPv6Freely](https://github.com/ipv6freely) - Twitter: [@IPv6Freely](https://twitter.com/ipv6freely)
 
 ## Credits
 
