@@ -16,7 +16,7 @@ os.system('cls' if os.name == 'nt' else 'clear')
 print('''
 +--------------------------------------------------------------------------+
 |                                                                          |
-| add-mx104-pem-fix.py                                                     |
+| junos-mx104-pem.py                                                       |
 |                                                                          |
 | Applies PEM fix script for Junper PR1064039                              |
 |                                                                          |
