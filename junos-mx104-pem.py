@@ -20,7 +20,7 @@ print('''
 |                                                                          |
 | Applies PEM fix script for Junper PR1064039                              |
 |                                                                          |
-| Written by: Chris Jones (cjones6@semprautilities.com)                    |
+| Written by: Chris Jones (https://github.com/ipv6freely)                  |
 |                                                                          |
 +--------------------------------------------------------------------------+
 ''')
