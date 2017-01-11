@@ -64,6 +64,11 @@ set event-options event-script file monitoring-pem.slax
             dev.open()
             dev.timeout = 300
             print(" - CONNECTED", end="")
+            inv = dev.rpc.get_chassis_inventory(normalize=True)
+            pem = inv.xpath(".//chassis-module[name='PEM 0']/model-number")[0].text
+            if pem == "PWR-MX104-AC-S":
+                print(" - Not a DC Power Supply! Skipping...")
+                continue
             active_re = dev.facts['master']
             if active_re == "RE0":
                 backup_re = "RE1"
